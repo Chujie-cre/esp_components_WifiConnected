@@ -231,6 +231,7 @@
     </style>
 </head>
 <body>
+    <!-- Toast notification -->
     <div class="toast" id="toast"></div>
     <div class="container">
         <div class="surface">
@@ -266,14 +267,14 @@
                 </p>
                 <p>
                     <label for="ssid">SSID:</label>
-                    <input type="text" id="ssid" name="ssid" required>
+                    <input type="text" id="ssid" name="ssid" required readonly>
                 </p>
                 <p>
-                    <label for="password" data-lang="password">密码:</label>
+                    <label for="password" data-lang="password">Password:</label>
                     <input type="password" id="password" name="password">
                 </p>
                 <p style="text-align: center;">
-                    <input type="submit" value="连接" id="button" data-lang-value="connect">
+                    <input type="submit" value="Connect" id="button" data-lang-value="connect">
                 </p>
                 <p id="ap_list">
                 </p>
@@ -284,19 +285,21 @@
             <div id="advanced-tab" class="tab-content">
         <form action="/advanced/submit" method="post" onsubmit="submitAdvancedForm(event)">
             <div>
-                <h3 data-lang="advanced_tab">高级选项</h3>
+                <h3 data-lang="advanced_tab">Advanced</h3>
                 <p class="error" style="color: red; text-align: center;" id="advanced_error"></p>
                 
+                <!-- OTA URL -->
                 <p>
-                    <label for="ota_url" data-lang="ota_url">OTA服务器地址:</label>
+                    <label for="ota_url" data-lang="ota_url">Custom OTA URL:</label>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <input type="text" id="ota_url" name="ota_url" style="flex: 1;">
                         <button type="button" onclick="clearOtaUrl()" style="padding: 5px 10px; border: 1px solid #ccc; border-radius: 3px; background-color: #f0f0f0; cursor: pointer;">❌</button>
                     </div>
                 </p>
 
+                <!-- Max TX Power -->
                 <p style="display: flex; align-items: center; gap: 10px;">
-                    <label for="max_tx_power" data-lang="max_tx_power" style="white-space: nowrap;">Wi-Fi发射功率:</label>
+                    <label for="max_tx_power" data-lang="max_tx_power" style="white-space: nowrap;">Wi-Fi Max TX Power:</label>
                     <select id="max_tx_power" name="max_tx_power">
                         <option value="8">2 dBm</option>
                         <option value="20">5 dBm</option>
@@ -312,22 +315,24 @@
                     </select>
                 </p>
 
+                <!-- Remember BSSID -->
                 <p style="display: flex; align-items: center; gap: 10px;">
                     <label for="remember_bssid" style="margin: 0;">
-                        <span data-lang="remember_bssid">连接 Wi-Fi 时记住 BSSID</span>
+                        <span data-lang="remember_bssid">Remember BSSID when connecting to Wi-Fi</span>
                     </label>
                     <input type="checkbox" id="remember_bssid" name="remember_bssid">
                 </p>
 
+                <!-- Sleep Mode -->
                 <p style="display: flex; align-items: center; gap: 10px;">
                     <label for="sleep_mode" style="margin: 0;">
-                        <span data-lang="sleep_mode">启用睡眠模式</span>
+                        <span data-lang="sleep_mode">Enable Sleep Mode</span>
                     </label>
                     <input type="checkbox" id="sleep_mode" name="sleep_mode">
                 </p>
 
                 <p style="text-align: center;">
-                    <input type="submit" value="保存" id="advanced_button" data-lang-value="save">
+                    <input type="submit" value="Save" id="advanced_button" data-lang-value="save">
                 </p>
             </div>
         </form>
@@ -336,19 +341,672 @@
     </div>
 
     <script type="text/javascript">
+        // ========== Global Variables ==========
         const button = document.getElementById('button');
         const error = document.getElementById('error');
         const ssid = document.getElementById('ssid');
+        let support5G = false; // Store 5G support status
 
-        // Add language translations
+        // ========== Translation Data ==========
         const translations = {
+            'ar-SA': {
+                title: 'تكوين الشبكة',
+                saved_wifi: 'Wi-Fi المحفوظة',
+                new_wifi: 'Wi-Fi جديد',
+                password: 'كلمة المرور:',
+                connect: 'اتصال',
+                connecting: 'جارٍ الاتصال...',
+                select_wifi: 'حدد Wi-Fi 2.4G من القائمة أدناه:',
+                select_wifi_5g: 'حدد Wi-Fi من القائمة أدناه:',
+                scanning: 'جارٍ المسح...',
+                wifi_tab: 'تكوين Wi-Fi',
+                advanced_tab: 'خيارات متقدمة',
+                ota_url: 'عنوان OTA مخصص:',
+                max_tx_power: 'أقصى قوة إرسال Wi-Fi:',
+                remember_bssid: 'تذكر BSSID عند الاتصال بـ Wi-Fi',
+                sleep_mode: 'تمكين وضع السكون',
+                save: 'حفظ'
+            },
+            'bg-BG': {
+                title: 'Конфигурация на мрежата',
+                saved_wifi: 'Запазени Wi-Fi',
+                new_wifi: 'Нов Wi-Fi',
+                password: 'Парола:',
+                connect: 'Свързване',
+                connecting: 'Свързване...',
+                select_wifi: 'Изберете 2.4G Wi-Fi от списъка по-долу:',
+                select_wifi_5g: 'Изберете Wi-Fi от списъка по-долу:',
+                scanning: 'Сканиране...',
+                wifi_tab: 'Конфигурация на Wi-Fi',
+                advanced_tab: 'Разширени',
+                ota_url: 'Персонализиран OTA URL:',
+                max_tx_power: 'Макс. мощност на предаване Wi-Fi:',
+                remember_bssid: 'Запомни BSSID при свързване към Wi-Fi',
+                sleep_mode: 'Активиране на режим на заспиване',
+                save: 'Запазване'
+            },
+            'ca-ES': {
+                title: 'Configuració de xarxa',
+                saved_wifi: 'Wi-Fi desats',
+                new_wifi: 'Nou Wi-Fi',
+                password: 'Contrasenya:',
+                connect: 'Connectar',
+                connecting: 'Connectant...',
+                select_wifi: 'Selecciona un Wi-Fi 2.4G de la llista següent:',
+                select_wifi_5g: 'Selecciona un Wi-Fi de la llista següent:',
+                scanning: 'Escanejant...',
+                wifi_tab: 'Configuració Wi-Fi',
+                advanced_tab: 'Avançat',
+                ota_url: 'URL OTA personalitzat:',
+                max_tx_power: 'Potència màxima TX Wi-Fi:',
+                remember_bssid: 'Recordar BSSID en connectar a Wi-Fi',
+                sleep_mode: 'Activar mode de suspensió',
+                save: 'Desar'
+            },
+            'cs-CZ': {
+                title: 'Konfigurace sítě',
+                saved_wifi: 'Uložené Wi-Fi',
+                new_wifi: 'Nové Wi-Fi',
+                password: 'Heslo:',
+                connect: 'Připojit',
+                connecting: 'Připojování...',
+                select_wifi: 'Vyberte 2.4G Wi-Fi ze seznamu níže:',
+                select_wifi_5g: 'Vyberte Wi-Fi ze seznamu níže:',
+                scanning: 'Skenování...',
+                wifi_tab: 'Konfigurace Wi-Fi',
+                advanced_tab: 'Pokročilé',
+                ota_url: 'Vlastní OTA URL:',
+                max_tx_power: 'Max. vysílací výkon Wi-Fi:',
+                remember_bssid: 'Pamatovat si BSSID při připojení k Wi-Fi',
+                sleep_mode: 'Povolit režim spánku',
+                save: 'Uložit'
+            },
+            'da-DK': {
+                title: 'Netværkskonfiguration',
+                saved_wifi: 'Gemte Wi-Fi',
+                new_wifi: 'Ny Wi-Fi',
+                password: 'Adgangskode:',
+                connect: 'Forbind',
+                connecting: 'Forbinder...',
+                select_wifi: 'Vælg en 2.4G Wi-Fi fra listen nedenfor:',
+                select_wifi_5g: 'Vælg en Wi-Fi fra listen nedenfor:',
+                scanning: 'Scanner...',
+                wifi_tab: 'Wi-Fi-konfiguration',
+                advanced_tab: 'Avanceret',
+                ota_url: 'Brugerdefineret OTA URL:',
+                max_tx_power: 'Wi-Fi maks. TX-effekt:',
+                remember_bssid: 'Husk BSSID ved forbindelse til Wi-Fi',
+                sleep_mode: 'Aktiver dvaletilstand',
+                save: 'Gem'
+            },
+            'de-DE': {
+                title: 'Netzwerk-Konfiguration',
+                saved_wifi: 'Gespeicherte Wi-Fi-Verbindungen',
+                new_wifi: 'Neue Wi-Fi-Verbindung',
+                password: 'Passwort:',
+                connect: 'Verbinden',
+                connecting: 'Verbindung wird hergestellt...',
+                select_wifi: 'Wähle ein 2.4G Wi-Fi aus der Liste:',
+                select_wifi_5g: 'Wähle ein Wi-Fi aus der Liste:',
+                scanning: 'Scanne...',
+                wifi_tab: 'Wi-Fi-Konfiguration',
+                advanced_tab: 'Erweitert',
+                ota_url: 'Benutzerdefinierte OTA-URL:',
+                max_tx_power: 'Wi-Fi Max. Sendeleistung:',
+                remember_bssid: 'BSSID beim Verbinden mit Wi-Fi merken',
+                sleep_mode: 'Schlafmodus aktivieren',
+                save: 'Speichern'
+            },
+            'el-GR': {
+                title: 'Διαμόρφωση δικτύου',
+                saved_wifi: 'Αποθηκευμένα Wi-Fi',
+                new_wifi: 'Νέο Wi-Fi',
+                password: 'Κωδικός πρόσβασης:',
+                connect: 'Σύνδεση',
+                connecting: 'Σύνδεση...',
+                select_wifi: 'Επιλέξτε ένα 2.4G Wi-Fi από την παρακάτω λίστα:',
+                select_wifi_5g: 'Επιλέξτε ένα Wi-Fi από την παρακάτω λίστα:',
+                scanning: 'Σάρωση...',
+                wifi_tab: 'Διαμόρφωση Wi-Fi',
+                advanced_tab: 'Για προχωρημένους',
+                ota_url: 'Προσαρμοσμένη διεύθυνση OTA:',
+                max_tx_power: 'Μέγιστη ισχύς μετάδοσης Wi-Fi:',
+                remember_bssid: 'Απομνημόνευση BSSID κατά τη σύνδεση σε Wi-Fi',
+                sleep_mode: 'Ενεργοποίηση λειτουργίας αναστολής',
+                save: 'Αποθήκευση'
+            },
+            'en-US': {
+                title: 'Network Configuration',
+                saved_wifi: 'Saved Wi-Fi',
+                new_wifi: 'New Wi-Fi',
+                password: 'Password:',
+                connect: 'Connect',
+                connecting: 'Connecting...',
+                select_wifi: 'Select a 2.4G Wi-Fi from the list below:',
+                select_wifi_5g: 'Select a Wi-Fi from the list below:',
+                scanning: 'Scanning...',
+                wifi_tab: 'Wi-Fi Config',
+                advanced_tab: 'Advanced',
+                ota_url: 'Custom OTA URL:',
+                max_tx_power: 'Wi-Fi Max TX Power:',
+                remember_bssid: 'Remember BSSID when connecting to Wi-Fi',
+                sleep_mode: 'Enable Sleep Mode',
+                save: 'Save'
+            },
+            'es-ES': {
+                title: 'Configuración de red',
+                saved_wifi: 'Wi-Fi guardados',
+                new_wifi: 'Nuevo Wi-Fi',
+                password: 'Contraseña:',
+                connect: 'Conectar',
+                connecting: 'Conectando...',
+                select_wifi: 'Seleccione un Wi-Fi 2.4G de la lista a continuación:',
+                select_wifi_5g: 'Seleccione un Wi-Fi de la lista a continuación:',
+                scanning: 'Escaneando...',
+                wifi_tab: 'Configuración Wi-Fi',
+                advanced_tab: 'Avanzado',
+                ota_url: 'URL OTA personalizada:',
+                max_tx_power: 'Potencia máxima TX Wi-Fi:',
+                remember_bssid: 'Recordar BSSID al conectarse a Wi-Fi',
+                sleep_mode: 'Activar modo de suspensión',
+                save: 'Guardar'
+            },
+            'fa-IR': {
+                title: 'پیکربندی شبکه',
+                saved_wifi: 'Wi-Fi ذخیره شده',
+                new_wifi: 'Wi-Fi جدید',
+                password: 'رمز عبور:',
+                connect: 'اتصال',
+                connecting: 'در حال اتصال...',
+                select_wifi: 'یک Wi-Fi 2.4G از لیست زیر انتخاب کنید:',
+                select_wifi_5g: 'یک Wi-Fi از لیست زیر انتخاب کنید:',
+                scanning: 'در حال اسکن...',
+                wifi_tab: 'پیکربندی Wi-Fi',
+                advanced_tab: 'پیشرفته',
+                ota_url: 'آدرس OTA سفارشی:',
+                max_tx_power: 'حداکثر قدرت انتقال Wi-Fi:',
+                remember_bssid: 'به خاطر سپردن BSSID هنگام اتصال به Wi-Fi',
+                sleep_mode: 'فعال کردن حالت خواب',
+                save: 'ذخیره'
+            },
+            'fi-FI': {
+                title: 'Verkon määritys',
+                saved_wifi: 'Tallennetut Wi-Fi',
+                new_wifi: 'Uusi Wi-Fi',
+                password: 'Salasana:',
+                connect: 'Yhdistä',
+                connecting: 'Yhdistetään...',
+                select_wifi: 'Valitse 2.4G Wi-Fi alla olevasta luettelosta:',
+                select_wifi_5g: 'Valitse Wi-Fi alla olevasta luettelosta:',
+                scanning: 'Etsitään...',
+                wifi_tab: 'Wi-Fi-määritys',
+                advanced_tab: 'Lisäasetukset',
+                ota_url: 'Mukautettu OTA-osoite:',
+                max_tx_power: 'Wi-Fi maks. lähetysteho:',
+                remember_bssid: 'Muista BSSID yhdistettäessä Wi-Fi-verkkoon',
+                sleep_mode: 'Ota lepotila käyttöön',
+                save: 'Tallenna'
+            },
+            'fil-PH': {
+                title: 'Pagsasaayos ng Network',
+                saved_wifi: 'Naka-save na Wi-Fi',
+                new_wifi: 'Bagong Wi-Fi',
+                password: 'Password:',
+                connect: 'Kumonekta',
+                connecting: 'Kumukonekta...',
+                select_wifi: 'Pumili ng 2.4G Wi-Fi mula sa listahan sa ibaba:',
+                select_wifi_5g: 'Pumili ng Wi-Fi mula sa listahan sa ibaba:',
+                scanning: 'Nag-scan...',
+                wifi_tab: 'Pagsasaayos ng Wi-Fi',
+                advanced_tab: 'Advanced',
+                ota_url: 'Custom OTA URL:',
+                max_tx_power: 'Wi-Fi Max TX Power:',
+                remember_bssid: 'Tandaan ang BSSID kapag kumokonekta sa Wi-Fi',
+                sleep_mode: 'I-enable ang Sleep Mode',
+                save: 'I-save'
+            },
+            'fr-FR': {
+                title: 'Configuration réseau',
+                saved_wifi: 'Wi-Fi enregistrés',
+                new_wifi: 'Nouveau Wi-Fi',
+                password: 'Mot de passe:',
+                connect: 'Connecter',
+                connecting: 'Connexion en cours...',
+                select_wifi: 'Sélectionnez un Wi-Fi 2.4G dans la liste ci-dessous:',
+                select_wifi_5g: 'Sélectionnez un Wi-Fi dans la liste ci-dessous:',
+                scanning: 'Analyse en cours...',
+                wifi_tab: 'Configuration Wi-Fi',
+                advanced_tab: 'Avancé',
+                ota_url: 'URL OTA personnalisée:',
+                max_tx_power: 'Puissance TX maximale Wi-Fi:',
+                remember_bssid: 'Mémoriser le BSSID lors de la connexion au Wi-Fi',
+                sleep_mode: 'Activer le mode veille',
+                save: 'Enregistrer'
+            },
+            'he-IL': {
+                title: 'הגדרות רשת',
+                saved_wifi: 'Wi-Fi שמורים',
+                new_wifi: 'Wi-Fi חדש',
+                password: 'סיסמה:',
+                connect: 'התחבר',
+                connecting: 'מתחבר...',
+                select_wifi: 'בחר Wi-Fi 2.4G מהרשימה למטה:',
+                select_wifi_5g: 'בחר Wi-Fi מהרשימה למטה:',
+                scanning: 'סורק...',
+                wifi_tab: 'הגדרות Wi-Fi',
+                advanced_tab: 'מתקדם',
+                ota_url: 'כתובת OTA מותאמת אישית:',
+                max_tx_power: 'הספק שידור מקסימלי Wi-Fi:',
+                remember_bssid: 'זכור BSSID בעת התחברות ל-Wi-Fi',
+                sleep_mode: 'הפעל מצב שינה',
+                save: 'שמור'
+            },
+            'hi-IN': {
+                title: 'नेटवर्क कॉन्फ़िगरेशन',
+                saved_wifi: 'सहेजे गए Wi-Fi',
+                new_wifi: 'नया Wi-Fi',
+                password: 'पासवर्ड:',
+                connect: 'कनेक्ट करें',
+                connecting: 'कनेक्ट हो रहा है...',
+                select_wifi: 'नीचे दी गई सूची से 2.4G Wi-Fi चुनें:',
+                select_wifi_5g: 'नीचे दी गई सूची से Wi-Fi चुनें:',
+                scanning: 'स्कैन कर रहा है...',
+                wifi_tab: 'Wi-Fi कॉन्फ़िगरेशन',
+                advanced_tab: 'उन्नत',
+                ota_url: 'कस्टम OTA URL:',
+                max_tx_power: 'Wi-Fi अधिकतम TX पावर:',
+                remember_bssid: 'Wi-Fi से कनेक्ट करते समय BSSID याद रखें',
+                sleep_mode: 'स्लीप मोड सक्षम करें',
+                save: 'सहेजें'
+            },
+            'hr-HR': {
+                title: 'Konfiguracija mreže',
+                saved_wifi: 'Spremljene Wi-Fi mreže',
+                new_wifi: 'Nova Wi-Fi mreža',
+                password: 'Lozinka:',
+                connect: 'Poveži',
+                connecting: 'Povezivanje...',
+                select_wifi: 'Odaberite 2.4G Wi-Fi s popisa ispod:',
+                select_wifi_5g: 'Odaberite Wi-Fi s popisa ispod:',
+                scanning: 'Skeniranje...',
+                wifi_tab: 'Konfiguracija Wi-Fi',
+                advanced_tab: 'Napredno',
+                ota_url: 'Prilagođeni OTA URL:',
+                max_tx_power: 'Wi-Fi maksimalna TX snaga:',
+                remember_bssid: 'Zapamti BSSID pri povezivanju na Wi-Fi',
+                sleep_mode: 'Omogući način spavanja',
+                save: 'Spremi'
+            },
+            'hu-HU': {
+                title: 'Hálózati konfiguráció',
+                saved_wifi: 'Mentett Wi-Fi hálózatok',
+                new_wifi: 'Új Wi-Fi hálózat',
+                password: 'Jelszó:',
+                connect: 'Csatlakozás',
+                connecting: 'Csatlakozás...',
+                select_wifi: 'Válasszon egy 2.4G Wi-Fi hálózatot az alábbi listából:',
+                select_wifi_5g: 'Válasszon egy Wi-Fi hálózatot az alábbi listából:',
+                scanning: 'Keresés...',
+                wifi_tab: 'Wi-Fi konfiguráció',
+                advanced_tab: 'Speciális',
+                ota_url: 'Egyéni OTA URL:',
+                max_tx_power: 'Wi-Fi max. adási teljesítmény:',
+                remember_bssid: 'BSSID megjegyzése Wi-Fi csatlakozáskor',
+                sleep_mode: 'Alvó mód engedélyezése',
+                save: 'Mentés'
+            },
+            'id-ID': {
+                title: 'Konfigurasi Jaringan',
+                saved_wifi: 'Wi-Fi Tersimpan',
+                new_wifi: 'Wi-Fi Baru',
+                password: 'Kata Sandi:',
+                connect: 'Hubungkan',
+                connecting: 'Menghubungkan...',
+                select_wifi: 'Pilih Wi-Fi 2.4G dari daftar di bawah:',
+                select_wifi_5g: 'Pilih Wi-Fi dari daftar di bawah:',
+                scanning: 'Memindai...',
+                wifi_tab: 'Konfigurasi Wi-Fi',
+                advanced_tab: 'Lanjutan',
+                ota_url: 'URL OTA Kustom:',
+                max_tx_power: 'Daya Pancar Maks Wi-Fi:',
+                remember_bssid: 'Ingat BSSID saat menghubungkan ke Wi-Fi',
+                sleep_mode: 'Aktifkan Mode Tidur',
+                save: 'Simpan'
+            },
+            'it-IT': {
+                title: 'Configurazione di rete',
+                saved_wifi: 'Wi-Fi salvate',
+                new_wifi: 'Nuova Wi-Fi',
+                password: 'Password:',
+                connect: 'Connetti',
+                connecting: 'Connessione in corso...',
+                select_wifi: 'Seleziona una Wi-Fi 2.4G dall\'elenco sottostante:',
+                select_wifi_5g: 'Seleziona una Wi-Fi dall\'elenco sottostante:',
+                scanning: 'Scansione in corso...',
+                wifi_tab: 'Configurazione Wi-Fi',
+                advanced_tab: 'Avanzate',
+                ota_url: 'URL OTA personalizzato:',
+                max_tx_power: 'Potenza TX massima Wi-Fi:',
+                remember_bssid: 'Ricorda BSSID durante la connessione al Wi-Fi',
+                sleep_mode: 'Abilita modalità sospensione',
+                save: 'Salva'
+            },
+            'ja-JP': {
+                title: 'ネットワーク設定',
+                saved_wifi: '保存済みのWi-Fi',
+                new_wifi: '新しいWi-Fi',
+                password: 'パスワード:',
+                connect: '接続',
+                connecting: '接続中...',
+                select_wifi: '以下のリストから2.4G Wi-Fiを選択してください:',
+                select_wifi_5g: '以下のリストからWi-Fiを選択してください:',
+                scanning: 'スキャン中...',
+                wifi_tab: 'Wi-Fi設定',
+                advanced_tab: '詳細設定',
+                ota_url: 'カスタムOTA URL:',
+                max_tx_power: 'Wi-Fi最大送信電力:',
+                remember_bssid: 'Wi-Fi接続時にBSSIDを記憶する',
+                sleep_mode: 'スリープモードを有効にする',
+                save: '保存'
+            },
+            'ko-KR': {
+                title: '네트워크 구성',
+                saved_wifi: '저장된 Wi-Fi',
+                new_wifi: '새 Wi-Fi',
+                password: '비밀번호:',
+                connect: '연결',
+                connecting: '연결 중...',
+                select_wifi: '아래 목록에서 2.4G Wi-Fi를 선택하세요:',
+                select_wifi_5g: '아래 목록에서 Wi-Fi를 선택하세요:',
+                scanning: '스캔 중...',
+                wifi_tab: 'Wi-Fi 구성',
+                advanced_tab: '고급',
+                ota_url: '사용자 정의 OTA URL:',
+                max_tx_power: 'Wi-Fi 최대 송신 전력:',
+                remember_bssid: 'Wi-Fi 연결 시 BSSID 기억',
+                sleep_mode: '절전 모드 활성화',
+                save: '저장'
+            },
+            'ms-MY': {
+                title: 'Konfigurasi Rangkaian',
+                saved_wifi: 'Wi-Fi Tersimpan',
+                new_wifi: 'Wi-Fi Baharu',
+                password: 'Kata Laluan:',
+                connect: 'Sambung',
+                connecting: 'Menyambung...',
+                select_wifi: 'Pilih Wi-Fi 2.4G dari senarai di bawah:',
+                select_wifi_5g: 'Pilih Wi-Fi dari senarai di bawah:',
+                scanning: 'Mengimbas...',
+                wifi_tab: 'Konfigurasi Wi-Fi',
+                advanced_tab: 'Lanjutan',
+                ota_url: 'URL OTA Tersuai:',
+                max_tx_power: 'Kuasa TX Maksimum Wi-Fi:',
+                remember_bssid: 'Ingat BSSID semasa menyambung ke Wi-Fi',
+                sleep_mode: 'Dayakan Mod Tidur',
+                save: 'Simpan'
+            },
+            'nb-NO': {
+                title: 'Nettverkskonfigurasjon',
+                saved_wifi: 'Lagrede Wi-Fi',
+                new_wifi: 'Nytt Wi-Fi',
+                password: 'Passord:',
+                connect: 'Koble til',
+                connecting: 'Kobler til...',
+                select_wifi: 'Velg et 2.4G Wi-Fi fra listen nedenfor:',
+                select_wifi_5g: 'Velg et Wi-Fi fra listen nedenfor:',
+                scanning: 'Skanner...',
+                wifi_tab: 'Wi-Fi-konfigurasjon',
+                advanced_tab: 'Avansert',
+                ota_url: 'Egendefinert OTA-URL:',
+                max_tx_power: 'Wi-Fi maks. sendeeffekt:',
+                remember_bssid: 'Husk BSSID ved tilkobling til Wi-Fi',
+                sleep_mode: 'Aktiver hvilemodus',
+                save: 'Lagre'
+            },
+            'nl-NL': {
+                title: 'Netwerkconfiguratie',
+                saved_wifi: 'Opgeslagen Wi-Fi',
+                new_wifi: 'Nieuwe Wi-Fi',
+                password: 'Wachtwoord:',
+                connect: 'Verbinden',
+                connecting: 'Verbinden...',
+                select_wifi: 'Selecteer een 2.4G Wi-Fi uit de onderstaande lijst:',
+                select_wifi_5g: 'Selecteer een Wi-Fi uit de onderstaande lijst:',
+                scanning: 'Scannen...',
+                wifi_tab: 'Wi-Fi-configuratie',
+                advanced_tab: 'Geavanceerd',
+                ota_url: 'Aangepaste OTA-URL:',
+                max_tx_power: 'Wi-Fi max. zendvermogen:',
+                remember_bssid: 'BSSID onthouden bij verbinden met Wi-Fi',
+                sleep_mode: 'Slaapmodus inschakelen',
+                save: 'Opslaan'
+            },
+            'pl-PL': {
+                title: 'Konfiguracja sieci',
+                saved_wifi: 'Zapisane Wi-Fi',
+                new_wifi: 'Nowe Wi-Fi',
+                password: 'Hasło:',
+                connect: 'Połącz',
+                connecting: 'Łączenie...',
+                select_wifi: 'Wybierz Wi-Fi 2.4G z poniższej listy:',
+                select_wifi_5g: 'Wybierz Wi-Fi z poniższej listy:',
+                scanning: 'Skanowanie...',
+                wifi_tab: 'Konfiguracja Wi-Fi',
+                advanced_tab: 'Zaawansowane',
+                ota_url: 'Niestandardowy adres URL OTA:',
+                max_tx_power: 'Maksymalna moc nadawania Wi-Fi:',
+                remember_bssid: 'Zapamiętaj BSSID podczas łączenia z Wi-Fi',
+                sleep_mode: 'Włącz tryb uśpienia',
+                save: 'Zapisz'
+            },
+            'pt-PT': {
+                title: 'Configuração de rede',
+                saved_wifi: 'Wi-Fi guardadas',
+                new_wifi: 'Nova Wi-Fi',
+                password: 'Palavra-passe:',
+                connect: 'Ligar',
+                connecting: 'A ligar...',
+                select_wifi: 'Selecione uma Wi-Fi 2.4G da lista abaixo:',
+                select_wifi_5g: 'Selecione uma Wi-Fi da lista abaixo:',
+                scanning: 'A procurar...',
+                wifi_tab: 'Configuração Wi-Fi',
+                advanced_tab: 'Avançado',
+                ota_url: 'URL OTA personalizado:',
+                max_tx_power: 'Potência TX máxima Wi-Fi:',
+                remember_bssid: 'Lembrar BSSID ao ligar ao Wi-Fi',
+                sleep_mode: 'Ativar modo de suspensão',
+                save: 'Guardar'
+            },
+            'ro-RO': {
+                title: 'Configurare rețea',
+                saved_wifi: 'Wi-Fi salvate',
+                new_wifi: 'Wi-Fi nou',
+                password: 'Parolă:',
+                connect: 'Conectare',
+                connecting: 'Se conectează...',
+                select_wifi: 'Selectați o Wi-Fi 2.4G din lista de mai jos:',
+                select_wifi_5g: 'Selectați o Wi-Fi din lista de mai jos:',
+                scanning: 'Se scanează...',
+                wifi_tab: 'Configurare Wi-Fi',
+                advanced_tab: 'Avansat',
+                ota_url: 'URL OTA personalizat:',
+                max_tx_power: 'Putere maximă TX Wi-Fi:',
+                remember_bssid: 'Reține BSSID la conectarea la Wi-Fi',
+                sleep_mode: 'Activează modul de repaus',
+                save: 'Salvare'
+            },
+            'ru-RU': {
+                title: 'Настройка сети',
+                saved_wifi: 'Сохраненные Wi-Fi',
+                new_wifi: 'Новая Wi-Fi',
+                password: 'Пароль:',
+                connect: 'Подключить',
+                connecting: 'Подключение...',
+                select_wifi: 'Выберите Wi-Fi 2.4G из списка ниже:',
+                select_wifi_5g: 'Выберите Wi-Fi из списка ниже:',
+                scanning: 'Сканирование...',
+                wifi_tab: 'Настройка Wi-Fi',
+                advanced_tab: 'Дополнительно',
+                ota_url: 'Пользовательский URL OTA:',
+                max_tx_power: 'Макс. мощность передачи Wi-Fi:',
+                remember_bssid: 'Запомнить BSSID при подключении к Wi-Fi',
+                sleep_mode: 'Включить режим сна',
+                save: 'Сохранить'
+            },
+            'sk-SK': {
+                title: 'Konfigurácia siete',
+                saved_wifi: 'Uložené Wi-Fi',
+                new_wifi: 'Nové Wi-Fi',
+                password: 'Heslo:',
+                connect: 'Pripojiť',
+                connecting: 'Pripájanie...',
+                select_wifi: 'Vyberte 2.4G Wi-Fi zo zoznamu nižšie:',
+                select_wifi_5g: 'Vyberte Wi-Fi zo zoznamu nižšie:',
+                scanning: 'Skenovanie...',
+                wifi_tab: 'Konfigurácia Wi-Fi',
+                advanced_tab: 'Pokročilé',
+                ota_url: 'Vlastná URL OTA:',
+                max_tx_power: 'Max. vysielací výkon Wi-Fi:',
+                remember_bssid: 'Zapamätať si BSSID pri pripojení k Wi-Fi',
+                sleep_mode: 'Povoliť režim spánku',
+                save: 'Uložiť'
+            },
+            'sl-SI': {
+                title: 'Konfiguracija omrežja',
+                saved_wifi: 'Shranjeni Wi-Fi',
+                new_wifi: 'Nov Wi-Fi',
+                password: 'Geslo:',
+                connect: 'Poveži',
+                connecting: 'Povezovanje...',
+                select_wifi: 'Izberite 2.4G Wi-Fi s spodnjega seznama:',
+                select_wifi_5g: 'Izberite Wi-Fi s spodnjega seznama:',
+                scanning: 'Iskanje...',
+                wifi_tab: 'Konfiguracija Wi-Fi',
+                advanced_tab: 'Napredno',
+                ota_url: 'Prilagojen URL OTA:',
+                max_tx_power: 'Wi-Fi maks. oddajna moč:',
+                remember_bssid: 'Zapomni si BSSID ob povezovanju na Wi-Fi',
+                sleep_mode: 'Omogoči način spanja',
+                save: 'Shrani'
+            },
+            'sr-RS': {
+                title: 'Конфигурација мреже',
+                saved_wifi: 'Сачуване Wi-Fi мреже',
+                new_wifi: 'Нова Wi-Fi мрежа',
+                password: 'Лозинка:',
+                connect: 'Повежи',
+                connecting: 'Повезивање...',
+                select_wifi: 'Изаберите 2.4G Wi-Fi са листе испод:',
+                select_wifi_5g: 'Изаберите Wi-Fi са листе испод:',
+                scanning: 'Скенирање...',
+                wifi_tab: 'Конфигурација Wi-Fi',
+                advanced_tab: 'Напредно',
+                ota_url: 'Прилагођени OTA URL:',
+                max_tx_power: 'Wi-Fi максимална снага преноса:',
+                remember_bssid: 'Запамти BSSID приликом повезивања на Wi-Fi',
+                sleep_mode: 'Омогући режим спавања',
+                save: 'Сачувај'
+            },
+            'sv-SE': {
+                title: 'Nätverkskonfiguration',
+                saved_wifi: 'Sparade Wi-Fi',
+                new_wifi: 'Nytt Wi-Fi',
+                password: 'Lösenord:',
+                connect: 'Anslut',
+                connecting: 'Ansluter...',
+                select_wifi: 'Välj ett 2.4G Wi-Fi från listan nedan:',
+                select_wifi_5g: 'Välj ett Wi-Fi från listan nedan:',
+                scanning: 'Söker...',
+                wifi_tab: 'Wi-Fi-konfiguration',
+                advanced_tab: 'Avancerat',
+                ota_url: 'Anpassad OTA-URL:',
+                max_tx_power: 'Wi-Fi max. sändningseffekt:',
+                remember_bssid: 'Kom ihåg BSSID vid anslutning till Wi-Fi',
+                sleep_mode: 'Aktivera viloläge',
+                save: 'Spara'
+            },
+            'th-TH': {
+                title: 'การกำหนดค่าเครือข่าย',
+                saved_wifi: 'Wi-Fi ที่บันทึกไว้',
+                new_wifi: 'Wi-Fi ใหม่',
+                password: 'รหัสผ่าน:',
+                connect: 'เชื่อมต่อ',
+                connecting: 'กำลังเชื่อมต่อ...',
+                select_wifi: 'เลือก Wi-Fi 2.4G จากรายการด้านล่าง:',
+                select_wifi_5g: 'เลือก Wi-Fi จากรายการด้านล่าง:',
+                scanning: 'กำลังสแกน...',
+                wifi_tab: 'การกำหนดค่า Wi-Fi',
+                advanced_tab: 'ขั้นสูง',
+                ota_url: 'URL OTA กำหนดเอง:',
+                max_tx_power: 'กำลังส่งสูงสุด Wi-Fi:',
+                remember_bssid: 'จำ BSSID เมื่อเชื่อมต่อกับ Wi-Fi',
+                sleep_mode: 'เปิดใช้งานโหมดสลีป',
+                save: 'บันทึก'
+            },
+            'tr-TR': {
+                title: 'Ağ Yapılandırması',
+                saved_wifi: 'Kaydedilmiş Wi-Fi',
+                new_wifi: 'Yeni Wi-Fi',
+                password: 'Şifre:',
+                connect: 'Bağlan',
+                connecting: 'Bağlanıyor...',
+                select_wifi: 'Aşağıdaki listeden bir 2.4G Wi-Fi seçin:',
+                select_wifi_5g: 'Aşağıdaki listeden bir Wi-Fi seçin:',
+                scanning: 'Taranıyor...',
+                wifi_tab: 'Wi-Fi Yapılandırması',
+                advanced_tab: 'Gelişmiş',
+                ota_url: 'Özel OTA URL:',
+                max_tx_power: 'Wi-Fi Maks. İletim Gücü:',
+                remember_bssid: 'Wi-Fi\'ye bağlanırken BSSID\'yi hatırla',
+                sleep_mode: 'Uyku Modunu Etkinleştir',
+                save: 'Kaydet'
+            },
+            'uk-UA': {
+                title: 'Налаштування мережі',
+                saved_wifi: 'Збережені Wi-Fi',
+                new_wifi: 'Нова Wi-Fi',
+                password: 'Пароль:',
+                connect: 'Підключити',
+                connecting: 'Підключення...',
+                select_wifi: 'Виберіть Wi-Fi 2.4G зі списку нижче:',
+                select_wifi_5g: 'Виберіть Wi-Fi зі списку нижче:',
+                scanning: 'Сканування...',
+                wifi_tab: 'Налаштування Wi-Fi',
+                advanced_tab: 'Додатково',
+                ota_url: 'Користувацька URL-адреса OTA:',
+                max_tx_power: 'Макс. потужність передачі Wi-Fi:',
+                remember_bssid: 'Запам\'ятати BSSID при підключенні до Wi-Fi',
+                sleep_mode: 'Увімкнути режим сну',
+                save: 'Зберегти'
+            },
+            'vi-VN': {
+                title: 'Cấu hình mạng',
+                saved_wifi: 'Wi-Fi đã lưu',
+                new_wifi: 'Wi-Fi mới',
+                password: 'Mật khẩu:',
+                connect: 'Kết nối',
+                connecting: 'Đang kết nối...',
+                select_wifi: 'Chọn Wi-Fi 2.4G từ danh sách bên dưới:',
+                select_wifi_5g: 'Chọn Wi-Fi từ danh sách bên dưới:',
+                scanning: 'Đang quét...',
+                wifi_tab: 'Cấu hình Wi-Fi',
+                advanced_tab: 'Tùy chọn nâng cao',
+                ota_url: 'Địa chỉ OTA tùy chỉnh:',
+                max_tx_power: 'Công suất phát Wi-Fi tối đa:',
+                remember_bssid: 'Ghi nhớ BSSID khi kết nối với Wi-Fi',
+                sleep_mode: 'Bật chế độ ngủ',
+                save: 'Lưu'
+            },
             'zh-CN': {
                 title: '网络配置',
                 saved_wifi: '已保存的 Wi-Fi',
                 new_wifi: '新的 Wi-Fi',
                 password: '密码:',
                 connect: '连接',
+                connecting: '正在连接...',
                 select_wifi: '从下面列表选择 2.4G Wi-Fi:',
+                select_wifi_5g: '从下面列表选择 Wi-Fi:',
+                scanning: '扫描中...',
                 wifi_tab: 'Wi-Fi 配置',
                 advanced_tab: '高级选项',
                 ota_url: '自定义 OTA 地址:',
@@ -363,7 +1021,10 @@
                 new_wifi: '新的 Wi-Fi',
                 password: '密碼:',
                 connect: '連接',
+                connecting: '正在連接...',
                 select_wifi: '從下方列表選擇 2.4G Wi-Fi:',
+                select_wifi_5g: '從下方列表選擇 Wi-Fi:',
+                scanning: '掃描中...',
                 wifi_tab: 'Wi-Fi 設定',
                 advanced_tab: '進階選項',
                 ota_url: '自定義 OTA 位址:',
@@ -404,40 +1065,157 @@
             }
         };
 
+        // ========== Language Mapping ==========
+        // Maps browser language codes to supported language codes
+        const languageMap = {
+            // Arabic
+            'ar': 'ar-SA', 'ar-SA': 'ar-SA', 'ar-EG': 'ar-SA', 'ar-AE': 'ar-SA',
+            // Bulgarian
+            'bg': 'bg-BG', 'bg-BG': 'bg-BG',
+            // Catalan
+            'ca': 'ca-ES', 'ca-ES': 'ca-ES',
+            // Czech
+            'cs': 'cs-CZ', 'cs-CZ': 'cs-CZ',
+            // Danish
+            'da': 'da-DK', 'da-DK': 'da-DK',
+            // German
+            'de': 'de-DE', 'de-DE': 'de-DE', 'de-AT': 'de-DE', 'de-CH': 'de-DE',
+            // Greek
+            'el': 'el-GR', 'el-GR': 'el-GR',
+            // English
+            'en': 'en-US', 'en-US': 'en-US', 'en-GB': 'en-US', 'en-CA': 'en-US', 'en-AU': 'en-US',
+            // Spanish
+            'es': 'es-ES', 'es-ES': 'es-ES', 'es-MX': 'es-ES', 'es-AR': 'es-ES',
+            // Persian
+            'fa': 'fa-IR', 'fa-IR': 'fa-IR',
+            // Finnish
+            'fi': 'fi-FI', 'fi-FI': 'fi-FI',
+            // Filipino
+            'fil': 'fil-PH', 'fil-PH': 'fil-PH', 'tl': 'fil-PH',
+            // French
+            'fr': 'fr-FR', 'fr-FR': 'fr-FR', 'fr-CA': 'fr-FR', 'fr-BE': 'fr-FR',
+            // Hebrew
+            'he': 'he-IL', 'he-IL': 'he-IL', 'iw': 'he-IL',
+            // Hindi
+            'hi': 'hi-IN', 'hi-IN': 'hi-IN',
+            // Croatian
+            'hr': 'hr-HR', 'hr-HR': 'hr-HR',
+            // Hungarian
+            'hu': 'hu-HU', 'hu-HU': 'hu-HU',
+            // Indonesian
+            'id': 'id-ID', 'id-ID': 'id-ID',
+            // Italian
+            'it': 'it-IT', 'it-IT': 'it-IT', 'it-CH': 'it-IT',
+            // Japanese
+            'ja': 'ja-JP', 'ja-JP': 'ja-JP',
+            // Korean
+            'ko': 'ko-KR', 'ko-KR': 'ko-KR',
+            // Malay
+            'ms': 'ms-MY', 'ms-MY': 'ms-MY',
+            // Norwegian
+            'nb': 'nb-NO', 'nb-NO': 'nb-NO', 'no': 'nb-NO', 'nn': 'nb-NO',
+            // Dutch
+            'nl': 'nl-NL', 'nl-NL': 'nl-NL', 'nl-BE': 'nl-NL',
+            // Polish
+            'pl': 'pl-PL', 'pl-PL': 'pl-PL',
+            // Portuguese
+            'pt': 'pt-PT', 'pt-PT': 'pt-PT', 'pt-BR': 'pt-PT',
+            // Romanian
+            'ro': 'ro-RO', 'ro-RO': 'ro-RO',
+            // Russian
+            'ru': 'ru-RU', 'ru-RU': 'ru-RU',
+            // Slovak
+            'sk': 'sk-SK', 'sk-SK': 'sk-SK',
+            // Slovenian
+            'sl': 'sl-SI', 'sl-SI': 'sl-SI',
+            // Serbian
+            'sr': 'sr-RS', 'sr-RS': 'sr-RS',
+            // Swedish
+            'sv': 'sv-SE', 'sv-SE': 'sv-SE',
+            // Thai
+            'th': 'th-TH', 'th-TH': 'th-TH',
+            // Turkish
+            'tr': 'tr-TR', 'tr-TR': 'tr-TR',
+            // Ukrainian
+            'uk': 'uk-UA', 'uk-UA': 'uk-UA',
+            // Vietnamese
+            'vi': 'vi-VN', 'vi-VN': 'vi-VN',
+            // Chinese
+            'zh': 'zh-CN', 'zh-CN': 'zh-CN', 'zh-TW': 'zh-TW', 'zh-HK': 'zh-TW'
+        };
+
+        // ========== Helper Functions ==========
+        
+        /**
+         * Get supported language code from browser language
+         */
+        function getSupportedLanguage(lang) {
+            // First try exact match
+            if (languageMap[lang]) {
+                return languageMap[lang];
+            }
+            // Then try to match only the main language code
+            const mainLang = lang.split('-')[0];
+            if (languageMap[mainLang]) {
+                return languageMap[mainLang];
+            }
+            // If no match, return English
+            return 'en-US';
+        }
+
+        /**
+         * Change the page language
+         */
         function changeLanguage() {
             const lang = document.getElementById('language').value;
-            // 检查语言值是否合法
+            
+            // Check if language is valid
             if (!translations[lang]) {
-                console.warn(`不支持的语言: ${lang}，默认使用中文`);
-                document.getElementById('language').value = 'zh-CN';
+                console.warn(`Unsupported language: ${lang}, defaulting to English`);
+                document.getElementById('language').value = 'en-US';
                 return changeLanguage();
             }
+            
             // Set page title
             document.title = translations[lang].title;
+            
+            // Update text content
             document.querySelectorAll('[data-lang]').forEach(element => {
                 const key = element.getAttribute('data-lang');
                 element.textContent = translations[lang][key];
             });
+            
+            // Update input values
             document.querySelectorAll('[data-lang-value]').forEach(element => {
                 const key = element.getAttribute('data-lang-value');
                 element.value = translations[lang][key];
             });
-            // Update AP list text
+            
+            // Update AP list text based on 5G support
             const apList = document.getElementById('ap_list');
             if (apList.firstChild) {
-                apList.firstChild.textContent = translations[lang].select_wifi;
+                const selectText = support5G ? translations[lang].select_wifi_5g : translations[lang].select_wifi;
+                apList.firstChild.textContent = selectText;
             }
+            
             // Save language preference
             localStorage.setItem('preferred_language', lang);
         }
 
+        // ========== Wi-Fi List Management ==========
+        
+        /**
+         * Render saved Wi-Fi list
+         */
         function renderSavedList(data) {
             const savedListContainer = document.getElementById('saved_list_container');
             const savedList = document.getElementById('saved_list');
             savedList.innerHTML = '';
+            
             data.forEach((ssid, index) => {
                 const li = document.createElement('li');
                 let html = `<span>${ssid}</span>`;
+                
                 // Only add priority and delete buttons after the first item
                 if (index > 0) {
                     html += ` <span>
@@ -447,21 +1225,20 @@
                 } else {
                     html += ` <span><button type="button" onclick="deleteItem(this, ${index})">❌</button></span>`;
                 }
+                
                 li.innerHTML = html;
                 savedList.appendChild(li);
             });
-            if (data.length > 0) {
-                savedListContainer.style.display = 'block';
-            } else {
-                savedListContainer.style.display = 'none';
-            }
+            
+            // Show/hide container based on whether there are saved networks
+            savedListContainer.style.display = data.length > 0 ? 'block' : 'none';
         }
 
-        // Delete one item from the list
+        /**
+         * Delete saved Wi-Fi network
+         */
         function deleteItem(item, index) {
-            // disable the button
             item.disabled = true;
-            // /saved/delete?index=INDEX
             fetch('/saved/delete?index=' + index)
                 .then(response => response.json())
                 .then(data => {
@@ -469,6 +1246,9 @@
                 });
         }
 
+        /**
+         * Set default Wi-Fi network (move to top)
+         */
         function setDefaultItem(item, index) {
             item.disabled = true;
             fetch('/saved/set_default?index=' + index)
@@ -478,7 +1258,9 @@
                 });
         }
 
-        // Load saved ssid and password list
+        /**
+         * Load saved Wi-Fi list from server
+         */
         function loadSavedList() {
             fetch('/saved/list')
                 .then(response => response.json())
@@ -487,111 +1269,82 @@
                 });
         }
 
-        // Load AP list from /scan
+        /**
+         * Load available Wi-Fi networks
+         */
         function loadAPList() {
             if (button.disabled) {
                 return;
             }
 
+            const lang = document.getElementById('language').value;
+            const apList = document.getElementById('ap_list');
+
+            // Check if AP list already has content
+            const hasExistingAPs = apList.querySelector('a') !== null;
+
+            // Only show scanning text if there's no existing AP list
+            if (!hasExistingAPs) {
+                apList.innerHTML = '<p class="scanning">' + translations[lang].scanning + '</p>';
+            }
+
             fetch('/scan')
                 .then(response => response.json())
                 .then(data => {
-                    const lang = document.getElementById('language').value;
-                    const apList = document.getElementById('ap_list');
-                    apList.innerHTML = '<p>' + translations[lang].select_wifi + '</p>';
-                    data.forEach(ap => {
-                        // Create a link for each AP
+                    // Update global 5G support status
+                    support5G = data.support_5g;
+                    
+                    // Use select_wifi_5g if 5G is supported, otherwise use select_wifi
+                    const selectText = support5G ? translations[lang].select_wifi_5g : translations[lang].select_wifi;
+                    apList.innerHTML = '<p>' + selectText + '</p>';
+                    
+                    // Iterate through available APs
+                    data.aps.forEach(ap => {
                         const link = document.createElement('a');
                         link.href = '#';
                         link.textContent = ap.ssid + ' (' + ap.rssi + ' dBm)';
+                        
+                        // Add lock icon for secured networks
                         if (ap.authmode === 0) {
                             link.textContent += ' 🌐';
                         } else {
                             link.textContent += ' 🔒';
                         }
+                        
                         link.addEventListener('click', () => {
                             ssid.value = ap.ssid;
                         });
+                        
                         apList.appendChild(link);
                     });
+                    
+                    // Refresh AP list every 5 seconds
                     setTimeout(loadAPList, 5000);
                 })
                 .catch(error => {
                     console.error('Error:', error);
+                    // On error, try again after 5 seconds
+                    setTimeout(loadAPList, 5000);
                 });
         }
 
-        // Set initial language
-        document.addEventListener('DOMContentLoaded', () => {
-            // 从 URL 参数中获取语言设置
-            const urlParams = new URLSearchParams(window.location.search);
-            const langParam = urlParams.get('lang');
-            
-            // 获取浏览器语言
-            const browserLang = navigator.language || navigator.userLanguage;
-            
-            // 语言映射表，将浏览器语言代码映射到支持的语言代码
-            const languageMap = {
-                'zh': 'zh-CN',    // 简体中文
-                'zh-CN': 'zh-CN', // 简体中文
-                'zh-TW': 'zh-TW', // 繁体中文
-                'zh-HK': 'zh-TW', // 繁体中文（香港）
-                'ja': 'ja-JP',    // 日语
-                'ja-JP': 'ja-JP', // 日语
-                'en': 'en-US',    // 英语
-                'en-US': 'en-US', // 英语
-                'en-GB': 'en-US', // 英语（英国）
-                'en-CA': 'en-US', // 英语（加拿大）
-                'en-AU': 'en-US'  // 英语（澳大利亚）
-            };
-            
-            // 获取支持的语言代码
-            const getSupportedLanguage = (lang) => {
-                // 首先尝试完全匹配
-                if (languageMap[lang]) {
-                    return languageMap[lang];
-                }
-                // 然后尝试只匹配主语言代码（例如 'zh' 而不是 'zh-CN'）
-                const mainLang = lang.split('-')[0];
-                if (languageMap[mainLang]) {
-                    return languageMap[mainLang];
-                }
-                // 如果都不匹配，返回英语
-                return 'en-US';
-            };
-            
-            // 优先使用 URL 参数的语言设置，其次是本地存储的设置，最后是浏览器语言设置
-            const savedLang = langParam || 
-                             localStorage.getItem('preferred_language') || 
-                             getSupportedLanguage(browserLang);
-            
-            document.getElementById('language').value = savedLang;
-            changeLanguage();
-            loadSavedList();
-            loadAPList();
-            loadAdvancedConfig();
-        });
-
-        // 监听 pageshow 事件以处理浏览器返回键
-        window.addEventListener('pageshow', (event) => {
-            if (event.persisted) {
-                loadSavedList();
-            } else {
-                // 正常加载时已处理
-            }
-        });
-
+        // ========== Form Submission ==========
+        
+        /**
+         * Submit Wi-Fi connection form
+         */
         async function submitForm(event) {
             event.preventDefault();
             button.disabled = true;
             error.textContent = '';
 
-            const ssidValue = ssid.value;
-            const passwordValue = document.getElementById('password').value;
+            // Show loading animation
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            loadingOverlay.classList.add('show');
 
             const payload = {
-                ssid: ssidValue,
-                password: passwordValue
+                ssid: ssid.value,
+                password: document.getElementById('password').value
             };
 
             try {
@@ -605,33 +1358,23 @@
 
                 const data = await response.json();
                 if (!data.success) {
-                    throw new Error(data.error || '连接失败');
+                    throw new Error(data.error || 'Connection failed');
                 }
 
-                // 连接成功，跳转到完成页面
+                // Connection successful, redirect to done page
                 button.disabled = false;
                 window.location.href = '/done.html';
             } catch (err) {
+                // Hide loading animation on error
+                loadingOverlay.classList.remove('show');
                 error.textContent = err.message;
                 button.disabled = false;
             }
         }
 
-        function switchTab(tabName) {
-            // 隐藏所有标签页内容
-            document.querySelectorAll('.tab-content').forEach(content => {
-                content.classList.remove('active');
-            });
-            // 移除所有标签页的active类
-            document.querySelectorAll('.tab').forEach(tab => {
-                tab.classList.remove('active');
-            });
-            // 显示选中的标签页内容
-            document.getElementById(tabName + '-tab').classList.add('active');
-            // 激活选中的标签
-            document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
-        }
-
+        /**
+         * Submit advanced configuration form
+         */
         async function submitAdvancedForm(event) {
             event.preventDefault();
             const advancedButton = document.getElementById('advanced_button');
@@ -657,18 +1400,43 @@
 
                 const data = await response.json();
                 if (!data.success) {
-                    throw new Error(data.error || '保存失败');
+                    throw new Error(data.error || 'Save failed');
                 }
 
                 advancedButton.disabled = false;
-                showToast('配置已保存');
+                showToast('Configuration saved');
             } catch (err) {
                 advancedError.textContent = err.message;
                 advancedButton.disabled = false;
             }
         }
 
-        // 显示提示框
+        // ========== UI Functions ==========
+        
+        /**
+         * Switch between tabs
+         */
+        function switchTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.add('active');
+            
+            // Activate selected tab
+            document.querySelector(`.tab[onclick="switchTab('${tabName}')"]`).classList.add('active');
+        }
+
+        /**
+         * Show toast notification
+         */
         function showToast(message) {
             const toast = document.getElementById('toast');
             toast.textContent = message;
@@ -678,7 +1446,9 @@
             }, 3000);
         }
 
-        // 加载高级配置
+        /**
+         * Load advanced configuration from server
+         */
         async function loadAdvancedConfig() {
             try {
                 const response = await fetch('/advanced/config');
@@ -701,10 +1471,54 @@
             }
         }
 
-        // 清空OTA地址
+        /**
+         * Clear OTA URL input field
+         */
         function clearOtaUrl() {
             document.getElementById('ota_url').value = '';
         }
+
+        // ========== Initialization ==========
+        
+        /**
+         * Initialize page on DOM load
+         */
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get language setting from URL parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const langParam = urlParams.get('lang');
+            
+            // Get browser language
+            const browserLang = navigator.language || navigator.userLanguage;
+            
+            // Priority: URL parameter > local storage > browser language setting
+            const savedLang = langParam || 
+                             localStorage.getItem('preferred_language') || 
+                             getSupportedLanguage(browserLang);
+            
+            document.getElementById('language').value = savedLang;
+            changeLanguage();
+            loadSavedList();
+            loadAPList();
+            loadAdvancedConfig();
+        });
+
+        /**
+         * Handle browser back button
+         */
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted) {
+                loadSavedList();
+            }
+        });
+
+        /**
+         * Enable SSID input (fix iOS bug)
+         */
+        ssid.addEventListener('touchstart', () => {
+            ssid.removeAttribute('readonly');
+            ssid.focus();
+        }, {once: true});
     </script>
 </body>
 </html>

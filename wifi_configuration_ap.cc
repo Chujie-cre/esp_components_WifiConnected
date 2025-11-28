@@ -15,6 +15,7 @@
 #include <cJSON.h>
 #include <esp_smartconfig.h>
 #include "ssid_manager.h"
+#include "sdkconfig.h"
 
 #define TAG "WifiConfigurationAp"
 
@@ -165,7 +166,8 @@ void WifiConfigurationAp::StartAccessPoint()
     ESP_ERROR_CHECK(esp_wifi_start());
 
 #ifdef CONFIG_SOC_WIFI_SUPPORT_5G
-    // Temporarily use only 2.4G Wi-Fi.
+    ESP_ERROR_CHECK(esp_wifi_set_band_mode(WIFI_BAND_MODE_AUTO));
+#else
     ESP_ERROR_CHECK(esp_wifi_set_band_mode(WIFI_BAND_MODE_2G_ONLY));
 #endif
 
@@ -220,6 +222,9 @@ void WifiConfigurationAp::StartWebServer()
     httpd_config_t config = HTTPD_DEFAULT_CONFIG();
     config.max_uri_handlers = 24;
     config.uri_match_fn = httpd_uri_match_wildcard;
+    // 5G Network takes longer to connect
+    config.recv_wait_timeout = 15;
+    config.send_wait_timeout = 15;
     ESP_ERROR_CHECK(httpd_start(&server_, &config));
 
     // Register the index.html file
@@ -312,10 +317,18 @@ void WifiConfigurationAp::StartWebServer()
             auto *this_ = static_cast<WifiConfigurationAp *>(req->user_ctx);
             std::lock_guard<std::mutex> lock(this_->mutex_);
 
+            // Check if 5G is supported
+            bool support_5g = false;
+#ifdef CONFIG_SOC_WIFI_SUPPORT_5G
+            support_5g = true;
+#endif
+
             // Send the scan results as JSON
             httpd_resp_set_type(req, "application/json");
             httpd_resp_set_hdr(req, "Connection", "close");
-            httpd_resp_sendstr_chunk(req, "[");
+            httpd_resp_sendstr_chunk(req, "{\"support_5g\":");
+            httpd_resp_sendstr_chunk(req, support_5g ? "true" : "false");
+            httpd_resp_sendstr_chunk(req, ",\"aps\":[");
             for (int i = 0; i < this_->ap_records_.size(); i++) {
                 ESP_LOGI(TAG, "SSID: %s, RSSI: %d, Authmode: %d",
                     (char *)this_->ap_records_[i].ssid, this_->ap_records_[i].rssi, this_->ap_records_[i].authmode);
@@ -327,7 +340,7 @@ void WifiConfigurationAp::StartWebServer()
                     httpd_resp_sendstr_chunk(req, ",");
                 }
             }
-            httpd_resp_sendstr_chunk(req, "]");
+            httpd_resp_sendstr_chunk(req, "]}");
             httpd_resp_sendstr_chunk(req, NULL);
             return ESP_OK;
         },
@@ -459,7 +472,7 @@ void WifiConfigurationAp::StartWebServer()
 
     auto captive_portal_handler = [](httpd_req_t *req) -> esp_err_t {
         auto *this_ = static_cast<WifiConfigurationAp *>(req->user_ctx);
-        std::string url = this_->GetWebServerUrl() + "/?lang=" + this_->language_;
+        std::string url = this_->GetWebServerUrl() + "/?lang=" + this_->language_ + "&_=" + std::to_string(esp_timer_get_time());
         // Set content type to prevent browser warnings
         httpd_resp_set_type(req, "text/html");
         httpd_resp_set_status(req, "302 Found");
@@ -693,8 +706,18 @@ bool WifiConfigurationAp::ConnectToWifi(const std::string &ssid, const std::stri
     }
     ESP_LOGI(TAG, "Connecting to WiFi %s", ssid.c_str());
 
-    // Wait for the connection to complete for 5 seconds
-    EventBits_t bits = xEventGroupWaitBits(event_group_, WIFI_CONNECTED_BIT | WIFI_FAIL_BIT, pdTRUE, pdFALSE, pdMS_TO_TICKS(10000));
+    // Wait for the connection to complete for 10 or 25 seconds
+    EventBits_t bits = xEventGroupWaitBits(
+        event_group_,
+        WIFI_CONNECTED_BIT | WIFI_FAIL_BIT,
+        pdTRUE,
+        pdFALSE,
+#ifdef CONFIG_SOC_WIFI_SUPPORT_5G
+        pdMS_TO_TICKS(25000)
+#else
+        pdMS_TO_TICKS(10000)
+#endif
+    );
     is_connecting_ = false;
 
     if (bits & WIFI_CONNECTED_BIT) {
