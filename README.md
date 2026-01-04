@@ -24,13 +24,24 @@
 - 提供用于 Wi‑Fi 配置的强制门户（Captive Portal）。
 - 支持多语言（英语、中文）。
 
+## Changelog: v3.0.0
+
+- Added WifiManager class for unified WiFi connection management.
+- Improved DnsServer and WifiConfigurationAp classes for better resource handling.
+- Updated HTML for configuration success message to use exit endpoint instead of reboot.
+- Enhanced error handling and state management in WifiStation.
+- Cleaned up unused code and improved thread safety across components.
+
 ## 使用
 
 ```cpp
-// 初始化默认事件循环
+#include <wifi_manager.h>
+#include <ssid_manager.h>
+
+// Initialize the default event loop
 ESP_ERROR_CHECK(esp_event_loop_create_default());
 
-// 初始化 NVS 闪存（用于 Wi‑Fi 配置）
+// Initialize NVS flash for Wi-Fi configuration
 esp_err_t ret = nvs_flash_init();
 if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
     ESP_ERROR_CHECK(nvs_flash_erase());
@@ -38,16 +49,46 @@ if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
 }
 ESP_ERROR_CHECK(ret);
 
-// 读取 Wi‑Fi 配置
+// Get the WifiManager singleton
+auto& wifi_manager = WifiManager::GetInstance();
+
+// Initialize with configuration
+WifiManagerConfig config;
+config.ssid_prefix = "ESP32";  // AP mode SSID prefix
+config.language = "zh-CN";     // Web UI language
+wifi_manager.Initialize(config);
+
+// Set event callback to handle WiFi events
+wifi_manager.SetEventCallback([](WifiEvent event) {
+    switch (event) {
+        case WifiEvent::Scanning:
+            ESP_LOGI("WiFi", "Scanning for networks...");
+            break;
+        case WifiEvent::Connecting:
+            ESP_LOGI("WiFi", "Connecting to network...");
+            break;
+        case WifiEvent::Connected:
+            ESP_LOGI("WiFi", "Connected successfully!");
+            break;
+        case WifiEvent::Disconnected:
+            ESP_LOGW("WiFi", "Disconnected from network");
+            break;
+        case WifiEvent::ConfigModeEnter:
+            ESP_LOGI("WiFi", "Entered config mode");
+            break;
+        case WifiEvent::ConfigModeExit:
+            ESP_LOGI("WiFi", "Exited config mode");
+            break;
+    }
+});
+
+// Check if there are saved Wi-Fi credentials
 auto& ssid_list = SsidManager::GetInstance().GetSsidList();
 if (ssid_list.empty()) {
-    // 启动用于配置的 Wi‑Fi AP
-    auto& ap = WifiConfigurationAp::GetInstance();
-    ap.SetSsidPrefix("ESP32");
-    ap.Start();
-    return;
+    // No credentials saved, start config AP mode
+    wifi_manager.StartConfigAp();
+} else {
+    // Try to connect to the saved Wi-Fi network
+    wifi_manager.StartStation();
 }
-
-// 否则，连接到 Wi‑Fi 网络
-WifiStation::GetInstance().Start();
 ```
